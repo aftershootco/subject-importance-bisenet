@@ -105,6 +105,15 @@ class BiSeNet(torch.nn.Module):
             self.supervision2 = nn.Conv2d(in_channels=512, out_channels=num_classes, kernel_size=1)
             # build feature fusion module
             self.feature_fusion_module = FeatureFusionModule(num_classes, 1024)
+        elif context_path == 'efficientnet_b0':
+            self.attention_refinement_module1 = AttentionRefinementModule(40, 40)
+            self.attention_refinement_module2 = AttentionRefinementModule(112, 112)
+
+            self.supervision1 = nn.Conv2d(in_channels=40, out_channels=num_classes, kernel_size=1)
+            self.supervision2 = nn.Conv2d(in_channels=112, out_channels=num_classes, kernel_size=1)
+
+            # Feature fusion: 256 (spatial path) + 40 + 112
+            self.feature_fusion_module = FeatureFusionModule(num_classes, 408)
         else:
             print('Error: unspport context_path network \n')
 
@@ -157,8 +166,14 @@ class BiSeNet(torch.nn.Module):
         result = self.feature_fusion_module(sx, cx)
 
         # upsampling
-        result = torch.nn.functional.interpolate(result, scale_factor=8, mode='bilinear')
+        # project to num_classes first
         result = self.conv(result)
+
+        # upsample to exactly match input size
+        result = torch.nn.functional.interpolate(
+            result, size=input.shape[2:], mode='bilinear', align_corners=False
+        )
+
 
         if self.training == True:
             return result, cx1_sup, cx2_sup
@@ -169,16 +184,15 @@ class BiSeNet(torch.nn.Module):
 if __name__ == '__main__':
     import os
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-    model = BiSeNet(32, 'resnet18')
+    model = BiSeNet(32, 'efficientnet_b0')
     # model = nn.DataParallel(model)
 
-    model = model.cuda()
+    # model = model.cuda()
     x = torch.rand(2, 3, 256, 256)
     record = model.parameters()
     # for key, params in model.named_parameters():
     #     if 'bn' in key:
     #         params.requires_grad = False
-    from utils import group_weight
     # params_list = []
     # for module in model.mul_lr:
     #     params_list = group_weight(params_list, module, nn.BatchNorm2d, 10)

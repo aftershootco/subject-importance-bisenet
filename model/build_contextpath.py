@@ -54,21 +54,48 @@ class resnet101(torch.nn.Module):
         tail = torch.mean(feature4, 3, keepdim=True)
         tail = torch.mean(tail, 2, keepdim=True)
         return feature3, feature4, tail
+    
+class efficientnet_b0(torch.nn.Module):
+    def __init__(self, pretrained=True):
+        super().__init__()
+        self.features = models.efficientnet_b0(pretrained=pretrained).features
+
+        # EfficientNet-b0 channels at reduction levels:
+        # stage 3 -> 40 (1/16 resolution)
+        # stage 6 -> 112 (1/32 resolution)
+        # stage 8 -> 1280 (final head)
+
+    def forward(self, x):
+        feat_list = []
+        for idx, block in enumerate(self.features):
+            x = block(x)
+            # Save intermediate features at required scales
+            if idx == 4:   # approx 1/16 resolution
+                feature3 = x
+            if idx == 6:   # approx 1/32 resolution
+                feature4 = x
+        # Tail = global average pooling
+        tail = torch.mean(x, dim=(2, 3), keepdim=True)
+        return feature3, feature4, tail
 
 
 def build_contextpath(name):
     model = {
         'resnet18': resnet18(pretrained=True),
-        'resnet101': resnet101(pretrained=True)
+        'resnet101': resnet101(pretrained=True),
+        'efficientnet_b0': efficientnet_b0(pretrained=True)
     }
     return model[name]
+
 
 
 if __name__ == '__main__':
     #
     model_18 = build_contextpath('resnet18')
     model_101 = build_contextpath('resnet101')
+    model_eff_b0 = build_contextpath('efficientnet_b0')
     x = torch.rand(1, 3, 256, 256)
 
     y_18 = model_18(x)
     y_101 = model_101(x)
+    y_eff_b0 = model_eff_b0(x)
