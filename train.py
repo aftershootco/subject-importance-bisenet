@@ -66,6 +66,8 @@ def train(args, model, optimizer, dataloader_train, dataloader_val):
                 label = label.cuda()
 
             output, output_sup1, output_sup2 = model(data)
+            print(output.shape)
+            print(label.shape)
             loss1 = loss_func(output, label)
             loss2 = loss_func(output_sup1, label)
             loss3 = loss_func(output_sup2, label)
@@ -168,7 +170,7 @@ if __name__ == '__main__':
         '--cuda', '0',
         '--batch_size', '8',
         '--save_model_path', './checkpoints_effb0',
-        '--context_path', 'resnet101',
+        '--context_path', 'efficientnet_b0',
         '--optimizer', 'adam',
         '--loss', 'dice'
     ]

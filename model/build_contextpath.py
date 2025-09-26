@@ -72,7 +72,7 @@ class efficientnet_b0(torch.nn.Module):
             # Save intermediate features at required scales
             if idx == 4:   # approx 1/16 resolution
                 feature3 = x
-            if idx == 6:   # approx 1/32 resolution
+            if idx == 8:   # approx 1/32 resolution
                 feature4 = x
         # Tail = global average pooling
         tail = torch.mean(x, dim=(2, 3), keepdim=True)

@@ -106,14 +106,14 @@ class BiSeNet(torch.nn.Module):
             # build feature fusion module
             self.feature_fusion_module = FeatureFusionModule(num_classes, 1024)
         elif context_path == 'efficientnet_b0':
-            self.attention_refinement_module1 = AttentionRefinementModule(40, 40)
-            self.attention_refinement_module2 = AttentionRefinementModule(112, 112)
+            self.attention_refinement_module1 = AttentionRefinementModule(80, 80)
+            self.attention_refinement_module2 = AttentionRefinementModule(1280, 1280)
 
-            self.supervision1 = nn.Conv2d(in_channels=40, out_channels=num_classes, kernel_size=1)
-            self.supervision2 = nn.Conv2d(in_channels=112, out_channels=num_classes, kernel_size=1)
+            self.supervision1 = nn.Conv2d(in_channels=80, out_channels=num_classes, kernel_size=1)
+            self.supervision2 = nn.Conv2d(in_channels=1280, out_channels=num_classes, kernel_size=1)
 
             # Feature fusion: 256 (spatial path) + 40 + 112
-            self.feature_fusion_module = FeatureFusionModule(num_classes, 408)
+            self.feature_fusion_module = FeatureFusionModule(num_classes, 1616)
         else:
             print('Error: unspport context_path network \n')
 
@@ -147,9 +147,16 @@ class BiSeNet(torch.nn.Module):
         sx = self.saptial_path(input)
 
         # output of context path
+        # print(input.shape)
         cx1, cx2, tail = self.context_path(input)
+        # print(cx1.shape)
+        # print(cx2.shape)
+        # print(tail.shape)
+        
         cx1 = self.attention_refinement_module1(cx1)
         cx2 = self.attention_refinement_module2(cx2)
+        # print(cx2.shape)
+        # print(tail.shape)
         cx2 = torch.mul(cx2, tail)
         # upsampling
         cx1 = torch.nn.functional.interpolate(cx1, size=sx.size()[-2:], mode='bilinear')
