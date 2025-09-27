@@ -91,15 +91,17 @@ def train(args, model, optimizer, dataloader_train, dataloader_val):
 
         if epoch % args.checkpoint_step == 0 and epoch != 0:
             os.makedirs(args.save_model_path, exist_ok=True)
-            torch.save(model.module.state_dict(),
-                       os.path.join(args.save_model_path, 'latest.pth'))
+            state_dict = model.module.state_dict() if hasattr(model, "module") else model.state_dict()
+            torch.save(state_dict, os.path.join(args.save_model_path, 'latest.pth'))
+
 
         if epoch % args.validation_step == 0:
             precision, miou = val(args, model, dataloader_val)
             if miou > max_miou:
                 max_miou = miou
-                torch.save(model.module.state_dict(),
-                           os.path.join(args.save_model_path, 'best.pth'))
+                state_dict = model.module.state_dict() if hasattr(model, "module") else model.state_dict()
+                torch.save(state_dict, os.path.join(args.save_model_path, 'best.pth'))
+
             writer.add_scalar('epoch/precision_val', precision, epoch)
             writer.add_scalar('epoch/miou_val', miou, epoch)
 
@@ -130,9 +132,24 @@ def main(params):
     folders = [os.path.join(args.data, f) for f in os.listdir(args.data) if os.path.isdir(os.path.join(args.data, f))]
     # Pass args.num_classes to the function call
     datasets = load_dataset(folders, image_size=(args.crop_height, args.crop_width), num_classes=args.num_classes)
-    dataloader_train = DataLoader(datasets["train"], batch_size=args.batch_size, shuffle=True,
-                                  num_workers=args.num_workers, drop_last=True)
-    dataloader_val = DataLoader(datasets["val"], batch_size=1, shuffle=False, num_workers=args.num_workers)
+    dataloader_train = DataLoader(datasets["train"],
+                                  batch_size=args.batch_size,
+                                  shuffle=True,
+                                  num_workers=args.num_workers,
+                                  drop_last=True,
+                                  prefetch_factor=2,
+                                  pin_memory=True,
+                                  persistent_workers=True
+                                  )
+    dataloader_val = DataLoader(datasets["val"],
+                                  batch_size=args.batch_size,
+                                  shuffle=True,
+                                  num_workers=args.num_workers,
+                                  drop_last=True,
+                                  prefetch_factor=2,
+                                  pin_memory=True,
+                                  persistent_workers=True
+                                  )
 
     # Build model
     os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda
@@ -164,12 +181,12 @@ if __name__ == '__main__':
     params = [
         '--num_epochs', '50',
         '--learning_rate', '0.0005',
-        '--data', '/Users/dhairyarora/development/Data',   # parent folder with 3 subfolders
+        '--data', 'test',   # parent folder with 3 subfolders
         '--num_workers', '4',
         '--num_classes', '2',
         '--cuda', '0',
         '--batch_size', '8',
-        '--save_model_path', './checkpoints_effb0',
+        '--save_model_path', '/Users/dhairyarora/development/subject-importance-bisenet/',
         '--context_path', 'efficientnet_b0',
         '--optimizer', 'adam',
         '--loss', 'dice'
